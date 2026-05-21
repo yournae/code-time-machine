@@ -1,0 +1,9 @@
+# Railway deployment config
+[build]
+builder = "heroku.buildpacks"
+
+[build.buildpacks]
+list = ["heroku/python"]
+
+[env]
+NEXT_PUBLIC_API_URL = "$RAILWAY_PUBLIC_DOMAIN"
