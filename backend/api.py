@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import os
 from pathlib import Path
 import asyncio
@@ -28,35 +27,15 @@ app.add_middleware(
 analyzers = {}
 explainer = AIExplainer()
 
-# Request/Response models
-class AnalyzeRequest(BaseModel):
-    repo_path: str
-    limit: int = 100
-
-class AnalyzeResponse(BaseModel):
-    repo_path: str
-    total_commits: int
-    total_authors: int
-    timeline: List[CommitInfo]
-
-class CommitDetailsResponse(BaseModel):
-    sha: str
-    message: str
-    author: str
-    date: str
-    changed_files: list
-    stats: dict
-    explanation: dict
-
-class FileHistoryResponse(BaseModel):
-    file_path: str
-    history: List[dict]
-    narrative: str
-
-class PatternsResponse(BaseModel):
-    total_commits: int
-    total_authors: int
-    patterns: dict
+# Helper validation functions
+def validate_analyze_request(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate analyze request."""
+    if not isinstance(data.get('repo_path'), str):
+        raise ValueError("repo_path must be a string")
+    limit = data.get('limit', 100)
+    if not isinstance(limit, int) or limit < 1:
+        raise ValueError("limit must be a positive integer")
+    return {'repo_path': data['repo_path'], 'limit': limit}
 
 # Helper functions
 def get_analyzer(repo_path: str) -> GitAnalyzer:
@@ -72,32 +51,44 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "ok", "service": "Code Time Machine"}
 
-@app.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_repository(request: AnalyzeRequest):
+@app.post("/analyze")
+async def analyze_repository(request: Dict[str, Any]):
     """Analyze a git repository and return timeline."""
     try:
-        repo_path = Path(request.repo_path).resolve()
+        validated = validate_analyze_request(request)
+        repo_path = Path(validated['repo_path']).resolve()
         
         if not repo_path.exists():
-            raise HTTPException(status_code=404, detail=f"Repository path not found: {request.repo_path}")
+            raise HTTPException(status_code=404, detail=f"Repository path not found: {validated['repo_path']}")
         
         if not (repo_path / ".git").exists():
-            raise HTTPException(status_code=400, detail=f"Not a git repository: {request.repo_path}")
+            raise HTTPException(status_code=400, detail=f"Not a git repository: {validated['repo_path']}")
         
         analyzer = get_analyzer(str(repo_path))
-        timeline = analyzer.get_timeline(limit=request.limit)
+        timeline = analyzer.get_timeline(limit=validated['limit'])
         patterns = analyzer.detect_patterns()
         
-        return AnalyzeResponse(
-            repo_path=str(repo_path),
-            total_commits=patterns['total_commits'],
-            total_authors=patterns['total_authors'],
-            timeline=timeline
-        )
+        return {
+            "repo_path": str(repo_path),
+            "total_commits": patterns['total_commits'],
+            "total_authors": patterns['total_authors'],
+            "timeline": [
+                {
+                    "sha": c.sha,
+                    "message": c.message,
+                    "author": c.author,
+                    "date": c.date,
+                    "files_changed": c.files_changed,
+                    "insertions": c.insertions,
+                    "deletions": c.deletions
+                }
+                for c in timeline
+            ]
+        }
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid repository: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing repository: {str(e)}")
 
@@ -127,15 +118,15 @@ async def get_commit_details(repo_path: str, sha: str):
         commit_data = analyzer.get_commit_details(sha)
         explanation = await explainer.explain_commit(commit_data)
         
-        return CommitDetailsResponse(
-            sha=commit_data['sha'],
-            message=commit_data['message'],
-            author=commit_data['author'],
-            date=commit_data['date'],
-            changed_files=commit_data['changed_files'],
-            stats=commit_data['stats'],
-            explanation=explanation
-        )
+        return {
+            "sha": commit_data['sha'],
+            "message": commit_data['message'],
+            "author": commit_data['author'],
+            "date": commit_data['date'],
+            "changed_files": commit_data['changed_files'],
+            "stats": commit_data['stats'],
+            "explanation": explanation
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -149,15 +140,15 @@ async def get_file_history(repo_path: str, file_path: str, limit: int = 50):
         history = analyzer.get_file_history(file_path, limit=limit)
         narrative = await explainer.explain_file_evolution(history)
         
-        return FileHistoryResponse(
-            file_path=file_path,
-            history=history,
-            narrative=narrative
-        )
+        return {
+            "file_path": file_path,
+            "history": history,
+            "narrative": narrative
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/patterns", response_model=PatternsResponse)
+@app.get("/patterns")
 async def detect_patterns(repo_path: str):
     """Detect code patterns and changes over time."""
     try:
@@ -182,11 +173,11 @@ async def detect_patterns(repo_path: str):
         
         patterns = await explainer.detect_code_patterns(commits_data)
         
-        return PatternsResponse(
-            total_commits=patterns_data['total_commits'],
-            total_authors=patterns_data['total_authors'],
-            patterns=patterns
-        )
+        return {
+            "total_commits": patterns_data['total_commits'],
+            "total_authors": patterns_data['total_authors'],
+            "patterns": patterns
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
