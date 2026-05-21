@@ -123,7 +123,7 @@ class GitAnalyzer:
         patterns = {
             'total_commits': len(list(self.repo.iter_commits())),
             'total_authors': len(set(c.author.name for c in self.repo.iter_commits())),
-            'active_files': len(self.repo.tree.traverse()),
+            'active_files': len(list(self.repo.tree().traverse())),
             'recent_activity': self._get_recent_activity(),
             'commit_frequency': self._analyze_commit_frequency(),
         }

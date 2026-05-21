@@ -96,29 +96,28 @@ async def analyze_repository(request: AnalyzeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing repository: {e}")
 
-@app.get("/timeline/{repo_id}")
-async def get_timeline(repo_id: str, limit: int = 100):
+@app.get("/timeline")
+async def get_timeline(repo_path: str, limit: int = 100):
     """Get commit timeline for a repository."""
     try:
-        # For now, repo_id is the path (URL encoded)
-        repo_path = Path(repo_id).resolve()
-        analyzer = get_analyzer(str(repo_path))
+        path = Path(repo_path).resolve()
+        analyzer = get_analyzer(str(path))
         timeline = analyzer.get_timeline(limit=limit)
         
         return {
-            "repo_path": str(repo_path),
+            "repo_path": str(path),
             "commits": timeline,
             "total": len(timeline)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/commit/{repo_id}/{sha}", response_model=CommitDetailsResponse)
-async def get_commit_details(repo_id: str, sha: str):
+@app.get("/commit")
+async def get_commit_details(repo_path: str, sha: str):
     """Get detailed information about a specific commit with AI explanation."""
     try:
-        repo_path = Path(repo_id).resolve()
-        analyzer = get_analyzer(str(repo_path))
+        path = Path(repo_path).resolve()
+        analyzer = get_analyzer(str(path))
         
         commit_data = analyzer.get_commit_details(sha)
         explanation = await explainer.explain_commit(commit_data)
@@ -135,12 +134,12 @@ async def get_commit_details(repo_id: str, sha: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/file-history/{repo_id}")
-async def get_file_history(repo_id: str, file_path: str, limit: int = 50):
+@app.get("/file-history")
+async def get_file_history(repo_path: str, file_path: str, limit: int = 50):
     """Get history of changes for a specific file."""
     try:
-        repo_path = Path(repo_id).resolve()
-        analyzer = get_analyzer(str(repo_path))
+        path = Path(repo_path).resolve()
+        analyzer = get_analyzer(str(path))
         
         history = analyzer.get_file_history(file_path, limit=limit)
         narrative = await explainer.explain_file_evolution(history)
@@ -153,12 +152,12 @@ async def get_file_history(repo_id: str, file_path: str, limit: int = 50):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/patterns/{repo_id}", response_model=PatternsResponse)
-async def detect_patterns(repo_id: str):
+@app.get("/patterns", response_model=PatternsResponse)
+async def detect_patterns(repo_path: str):
     """Detect code patterns and changes over time."""
     try:
-        repo_path = Path(repo_id).resolve()
-        analyzer = get_analyzer(str(repo_path))
+        path = Path(repo_path).resolve()
+        analyzer = get_analyzer(str(path))
         
         patterns_data = analyzer.detect_patterns()
         
@@ -186,12 +185,12 @@ async def detect_patterns(repo_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/diff/{repo_id}")
-async def get_diff(repo_id: str, sha1: str, sha2: str):
+@app.get("/diff")
+async def get_diff(repo_path: str, sha1: str, sha2: str):
     """Get diff between two commits."""
     try:
-        repo_path = Path(repo_id).resolve()
-        analyzer = get_analyzer(str(repo_path))
+        path = Path(repo_path).resolve()
+        analyzer = get_analyzer(str(path))
         
         diff = analyzer.get_diff(sha1, sha2)
         
@@ -203,12 +202,12 @@ async def get_diff(repo_id: str, sha1: str, sha2: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/rewind/{repo_id}/{sha}")
-async def rewind_to_commit(repo_id: str, sha: str):
+@app.get("/rewind")
+async def rewind_to_commit(repo_path: str, sha: str):
     """Get state at a specific commit (metadata only)."""
     try:
-        repo_path = Path(repo_id).resolve()
-        analyzer = get_analyzer(str(repo_path))
+        path = Path(repo_path).resolve()
+        analyzer = get_analyzer(str(path))
         
         commit_data = analyzer.get_commit_details(sha)
         explanation = await explainer.explain_commit(commit_data)
@@ -230,12 +229,12 @@ async def root():
         "description": "AI-powered Git history analyzer",
         "endpoints": {
             "POST /analyze": "Analyze a repository",
-            "GET /timeline/{repo_id}": "Get commit timeline",
-            "GET /commit/{repo_id}/{sha}": "Get commit details with AI explanation",
-            "GET /file-history/{repo_id}": "Get file evolution history",
-            "GET /patterns/{repo_id}": "Detect code patterns",
-            "GET /diff/{repo_id}": "Get diff between commits",
-            "GET /rewind/{repo_id}/{sha}": "Rewind to specific commit",
+            "GET /timeline": "Get commit timeline (params: repo_path, limit)",
+            "GET /commit": "Get commit details with AI explanation (params: repo_path, sha)",
+            "GET /file-history": "Get file evolution (params: repo_path, file_path, limit)",
+            "GET /patterns": "Detect code patterns (params: repo_path)",
+            "GET /diff": "Get diff between commits (params: repo_path, sha1, sha2)",
+            "GET /rewind": "Rewind to specific commit (params: repo_path, sha)",
         }
     }
 
