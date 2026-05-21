@@ -79,7 +79,10 @@ async def analyze_repository(request: AnalyzeRequest):
         repo_path = Path(request.repo_path).resolve()
         
         if not repo_path.exists():
-            raise HTTPException(status_code=404, detail="Repository path not found")
+            raise HTTPException(status_code=404, detail=f"Repository path not found: {request.repo_path}")
+        
+        if not (repo_path / ".git").exists():
+            raise HTTPException(status_code=400, detail=f"Not a git repository: {request.repo_path}")
         
         analyzer = get_analyzer(str(repo_path))
         timeline = analyzer.get_timeline(limit=request.limit)
@@ -91,10 +94,12 @@ async def analyze_repository(request: AnalyzeRequest):
             total_authors=patterns['total_authors'],
             timeline=timeline
         )
+    except HTTPException:
+        raise
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"Invalid repository: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing repository: {e}")
+        raise HTTPException(status_code=500, detail=f"Error analyzing repository: {str(e)}")
 
 @app.get("/timeline")
 async def get_timeline(repo_path: str, limit: int = 100):
