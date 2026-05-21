@@ -1,15 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Timeline } from '../components/Timeline';
 import { CommitDetails } from '../components/CommitDetails';
 import { analyzeRepository, getCommitDetails } from '../lib/api';
+
+interface Commit {
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
+  files_changed: number;
+  insertions: number;
+  deletions: number;
+}
+
+interface RepoInfo {
+  path: string;
+  totalCommits: number;
+  totalAuthors: number;
+}
 
 export default function Home() {
   const [repoPath, setRepoPath] = useState('');
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [commits, setCommits] = useState([]);
-  const [selectedCommit, setSelectedCommit] = useState(null);
-  const [repoInfo, setRepoInfo] = useState(null);
+  const [commits, setCommits] = useState<Commit[]>([]);
+  const [selectedCommit, setSelectedCommit] = useState<any>(null);
+  const [repoInfo, setRepoInfo] = useState<RepoInfo | null>(null);
   const [error, setError] = useState('');
 
   const handleAnalyze = async () => {
@@ -20,29 +36,42 @@ export default function Home() {
 
     setAnalyzing(true);
     setError('');
+    setSelectedCommit(null);
     
     try {
       const data = await analyzeRepository(repoPath);
-      setCommits(data.timeline);
+      setCommits(data.timeline || []);
       setRepoInfo({
         path: data.repo_path,
         totalCommits: data.total_commits,
         totalAuthors: data.total_authors,
       });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to analyze repository');
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to analyze repository';
+      setError(errorMsg);
+      console.error('Analysis error:', err);
     } finally {
       setAnalyzing(false);
     }
   };
 
-  const handleCommitSelect = async (commit: any) => {
+  const handleCommitSelect = async (commit: Commit) => {
     setLoading(true);
+    setError('');
+    
     try {
-      const details = await getCommitDetails(repoInfo?.path || repoPath, commit.sha);
+      const repoPathToUse = repoInfo?.path || repoPath;
+      if (!repoPathToUse) {
+        setError('Repository path not available');
+        return;
+      }
+      
+      const details = await getCommitDetails(repoPathToUse, commit.sha);
       setSelectedCommit(details);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load commit details');
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to load commit details';
+      setError(errorMsg);
+      console.error('Commit details error:', err);
     } finally {
       setLoading(false);
     }
@@ -77,6 +106,7 @@ export default function Home() {
               placeholder="/path/to/your/git/repository"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
+              disabled={analyzing}
             />
             <button
               onClick={handleAnalyze}
@@ -88,7 +118,7 @@ export default function Home() {
           </div>
           {error && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-              {error}
+              ⚠️ {error}
             </div>
           )}
         </div>
