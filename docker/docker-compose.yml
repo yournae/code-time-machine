@@ -1,4 +1,4 @@
-version: 3.8
+version: "3.8"
 
 services:
   backend:
@@ -12,10 +12,16 @@ services:
       - LLM_API_URL=${LLM_API_URL}
       - LLM_MODEL=${LLM_MODEL}
     volumes:
-      # Mount specific repo directories instead of entire host
       - ${REPO_PATH:-/home/user/repos}:/mnt/repos:ro
     networks:
       - code-time-machine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   frontend:
     build:
@@ -26,9 +32,17 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:8000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - code-time-machine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 networks:
   code-time-machine:
