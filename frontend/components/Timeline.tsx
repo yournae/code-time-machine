@@ -119,7 +119,7 @@ export const Timeline: React.FC<TimelineProps> = ({ commits, onCommitSelect, sel
       .attr('text-anchor', 'middle')
       .text('Total Changes');
 
-  }, [commits, selectedSha]);
+  }, [commits, selectedSha, onCommitSelect]);
 
   return (
     <div className="w-full bg-white rounded-lg shadow p-4">

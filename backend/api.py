@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+import logging
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, List, Dict, Any
 import os
@@ -7,6 +8,8 @@ import asyncio
 
 from git_analyzer import GitAnalyzer, CommitInfo
 from ai_explainer import AIExplainer
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Code Time Machine API",
@@ -17,14 +20,34 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+ALLOWED_REPO_ROOTS = [
+    Path.home(),
+    Path("/tmp"),
+    Path("/var/repos"),
+]
+
+def validate_repo_path(repo_path: str) -> Path:
+    """Validate and resolve repo path, preventing path traversal."""
+    resolved = Path(repo_path).resolve()
+    if not any(resolved == root or str(resolved).startswith(str(root) + "/") for root in ALLOWED_REPO_ROOTS):
+        raise HTTPException(status_code=403, detail="Access to this path is not allowed")
+    if not resolved.is_dir():
+        raise HTTPException(status_code=400, detail="Path is not a directory")
+    return resolved
+
 # Global state
-analyzers = {}
+MAX_ANALYZERS = 50
+analyzers: dict[str, GitAnalyzer] = {}
 explainer = AIExplainer()
 
 # Helper validation functions
@@ -39,8 +62,12 @@ def validate_analyze_request(data: Dict[str, Any]) -> Dict[str, Any]:
 
 # Helper functions
 def get_analyzer(repo_path: str) -> GitAnalyzer:
-    """Get or create analyzer for repository."""
+    """Get or create analyzer for repository with LRU-style eviction."""
     if repo_path not in analyzers:
+        if len(analyzers) >= MAX_ANALYZERS:
+            # Remove oldest entry
+            oldest_key = next(iter(analyzers))
+            del analyzers[oldest_key]
         analyzers[repo_path] = GitAnalyzer(repo_path)
     return analyzers[repo_path]
 
@@ -56,13 +83,10 @@ async def analyze_repository(request: Dict[str, Any]):
     """Analyze a git repository and return timeline."""
     try:
         validated = validate_analyze_request(request)
-        repo_path = Path(validated['repo_path']).resolve()
-        
-        if not repo_path.exists():
-            raise HTTPException(status_code=404, detail=f"Repository path not found: {validated['repo_path']}")
+        repo_path = validate_repo_path(validated['repo_path'])
         
         if not (repo_path / ".git").exists():
-            raise HTTPException(status_code=400, detail=f"Not a git repository: {validated['repo_path']}")
+            raise HTTPException(status_code=400, detail="Not a git repository")
         
         analyzer = get_analyzer(str(repo_path))
         timeline = analyzer.get_timeline(limit=validated['limit'])
@@ -88,15 +112,17 @@ async def analyze_repository(request: Dict[str, Any]):
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}")
+        logger.error(f"Validation error: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail="Invalid request")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing repository: {str(e)}")
+        logger.error(f"Error analyzing repo: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/timeline")
 async def get_timeline(repo_path: str, limit: int = 100):
     """Get commit timeline for a repository."""
     try:
-        path = Path(repo_path).resolve()
+        path = validate_repo_path(repo_path)
         analyzer = get_analyzer(str(path))
         timeline = analyzer.get_timeline(limit=limit)
         
@@ -105,14 +131,17 @@ async def get_timeline(repo_path: str, limit: int = 100):
             "commits": timeline,
             "total": len(timeline)
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting timeline: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/commit")
 async def get_commit_details(repo_path: str, sha: str):
     """Get detailed information about a specific commit with AI explanation."""
     try:
-        path = Path(repo_path).resolve()
+        path = validate_repo_path(repo_path)
         analyzer = get_analyzer(str(path))
         
         commit_data = analyzer.get_commit_details(sha)
@@ -127,14 +156,17 @@ async def get_commit_details(repo_path: str, sha: str):
             "stats": commit_data['stats'],
             "explanation": explanation
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting commit details: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/file-history")
 async def get_file_history(repo_path: str, file_path: str, limit: int = 50):
     """Get history of changes for a specific file."""
     try:
-        path = Path(repo_path).resolve()
+        path = validate_repo_path(repo_path)
         analyzer = get_analyzer(str(path))
         
         history = analyzer.get_file_history(file_path, limit=limit)
@@ -145,14 +177,17 @@ async def get_file_history(repo_path: str, file_path: str, limit: int = 50):
             "history": history,
             "narrative": narrative
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting file history: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/patterns")
 async def detect_patterns(repo_path: str):
     """Detect code patterns and changes over time."""
     try:
-        path = Path(repo_path).resolve()
+        path = validate_repo_path(repo_path)
         analyzer = get_analyzer(str(path))
         
         patterns_data = analyzer.detect_patterns()
@@ -178,14 +213,17 @@ async def detect_patterns(repo_path: str):
             "total_authors": patterns_data['total_authors'],
             "patterns": patterns
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error detecting patterns: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/diff")
 async def get_diff(repo_path: str, sha1: str, sha2: str):
     """Get diff between two commits."""
     try:
-        path = Path(repo_path).resolve()
+        path = validate_repo_path(repo_path)
         analyzer = get_analyzer(str(path))
         
         diff = analyzer.get_diff(sha1, sha2)
@@ -195,14 +233,17 @@ async def get_diff(repo_path: str, sha1: str, sha2: str):
             "sha2": sha2,
             "diff": diff[:5000]  # Limit diff size
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting diff: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/rewind")
 async def rewind_to_commit(repo_path: str, sha: str):
     """Get state at a specific commit (metadata only)."""
     try:
-        path = Path(repo_path).resolve()
+        path = validate_repo_path(repo_path)
         analyzer = get_analyzer(str(path))
         
         commit_data = analyzer.get_commit_details(sha)
@@ -213,8 +254,11 @@ async def rewind_to_commit(repo_path: str, sha: str):
             "explanation": explanation,
             "message": f"Rewound to commit {sha}"
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error rewinding: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/")
 async def root():

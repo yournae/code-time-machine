@@ -1,4 +1,4 @@
-version: '3.8'
+version: 3.8
 
 services:
   backend:
@@ -12,7 +12,8 @@ services:
       - LLM_API_URL=${LLM_API_URL}
       - LLM_MODEL=${LLM_MODEL}
     volumes:
-      - /:/mnt/host:ro
+      # Mount specific repo directories instead of entire host
+      - ${REPO_PATH:-/home/user/repos}:/mnt/repos:ro
     networks:
       - code-time-machine
 
