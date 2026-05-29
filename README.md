@@ -1,102 +1,102 @@
-# Code Time Machine 🕰️
+# 🕰️ Code Time Machine
 
-AI-powered Git history analyzer that tells the **story** of your code evolution.
+AI-powered Git history analyzer that visualizes code evolution and provides intelligent insights.
 
-## Features
+## ✨ Features
 
-- 📊 **Interactive Timeline**: Visualize code evolution over time
-- 🔍 **Smart Rewind**: Jump to any commit and see what changed + why
-- 🤖 **AI Explanations**: Understand the reasoning behind changes
-- 🎯 **Pattern Detection**: Identify dead code, performance shifts, architectural changes
-- 📈 **Evolution Narrative**: Not just blame/log, but the *story* of your code
+### Core
+- **Commit Timeline** — Interactive D3.js visualization of commit history
+- **AI Explanations** — LLM-powered analysis of why code changed
+- **File History** — Track evolution of individual files
+- **Pattern Detection** — Identify code patterns and architectural shifts
 
-## Architecture
+### New in v2.0
+- **🧬 Code DNA** — Phylogenetic tree showing how files evolved, split, merged, and died
+- **🔍 Git Blame AI** — Supercharged blame that explains WHY each line exists, not just who wrote it
+- **🏚️ Dead Code Detector** — Find abandoned, stale, zombie, and orphaned files with AI cleanup recommendations
+- **🌙 Dark Mode** — Full dark theme support
+- **📥 Export** — Export visualizations as PNG, SVG, or PDF
+- **⚡ WebSocket Streaming** — Real-time AI analysis via WebSocket
 
-```
-code-time-machine/
-├── backend/           # Python FastAPI server
-│   ├── git_analyzer.py    # Git history parsing
-│   ├── ai_explainer.py    # LLM-powered change analysis
-│   └── api.py             # REST API endpoints
-├── frontend/          # Next.js + D3.js visualization
-│   ├── components/
-│   │   ├── Timeline.tsx   # Interactive timeline
-│   │   └── CommitDetails.tsx # Commit details view
-│   └── pages/
-└── docker/            # Deployment configs
-```
+## 🚀 Quick Start
 
-## Tech Stack
+### Prerequisites
+- Python 3.11+
+- Node.js 20+
+- Git
 
-**Backend**:
-- Python 3.11+ (FastAPI)
-- GitPython (git history parsing)
-- LLM API (change explanation)
-
-**Frontend**:
-- Next.js 14 (React framework)
-- D3.js (timeline visualization)
-- TailwindCSS (styling)
-
-## Quick Start
-
+### Backend
 ```bash
-# Backend
 cd backend
 pip install -r requirements.txt
-uvicorn api:app --reload
+python api.py
+```
 
-# Frontend
+### Frontend
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-## API Endpoints
-
-```
-POST /analyze          # Analyze a git repository
-GET  /timeline?repo_path=...         # Get commit timeline
-GET  /commit?repo_path=...&sha=...   # Get commit details + AI explanation
-GET  /file-history?repo_path=...&file_path=... # Get file evolution
-GET  /patterns?repo_path=...         # Detect code patterns
-GET  /diff?repo_path=...&sha1=...&sha2=...  # Get diff between commits
-GET  /rewind?repo_path=...&sha=...   # Rewind to specific commit
+### Docker
+```bash
+REPO_PATH=/path/to/your/repos docker compose -f docker/docker-compose.yml up
 ```
 
-## Usage
+## 📡 API Endpoints
 
-1. Point to a git repository
-2. Code Time Machine analyzes commit history
-3. Interactive timeline shows evolution
-4. Click any point → see changes + AI explanation
-5. Detect patterns: dead code, performance regressions, architectural shifts
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/analyze` | POST | Analyze a repository |
+| `/timeline` | GET | Get commit timeline |
+| `/commit` | GET | Get commit details with AI explanation |
+| `/file-history` | GET | Get file evolution history |
+| `/patterns` | GET | Detect code patterns |
+| `/diff` | GET | Get diff between commits |
+| `/rewind` | GET | Rewind to specific commit |
+| `/code-dna` | GET | Get phylogenetic DNA tree |
+| `/blame` | GET | AI-enhanced file blame |
+| `/dead-code` | GET | Detect dead/abandoned code |
+| `/health` | GET | Health check |
+| `/ws/explain` | WS | WebSocket for streaming AI |
 
-## Example Output
+## 🏗️ Architecture
 
 ```
-📅 2024-03-15 | Commit abc123
-🔧 Refactored authentication logic
-
-AI Analysis:
-"This commit replaced JWT tokens with session-based auth.
-Performance improved 2.3x due to reduced token validation overhead.
-Security posture strengthened with HttpOnly cookies."
-
-Files Changed: 8 files, +234 -189 lines
-Impact: High (core authentication)
-Pattern: Architectural shift (stateless → stateful)
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Frontend   │────▶│   Backend    │────▶│  Git Repos  │
+│  Next.js 15  │     │   FastAPI    │     │  (local)    │
+│  D3.js       │     │  GitPython   │     └─────────────┘
+│  Tailwind    │     │  AI/LLM      │
+└─────────────┘     └──────────────┘
 ```
 
-## Roadmap
+## 🧪 Testing
 
-- [x] Git history parsing
-- [x] AI-powered change explanation
-- [x] Interactive timeline visualization
-- [ ] Pattern detection (dead code, regressions)
-- [ ] Multi-repo comparison
-- [ ] Export reports (PDF/Markdown)
+```bash
+# Backend
+cd backend && pytest -v
 
-## License
+# Frontend
+cd frontend && npm run build
+```
 
-MIT - see [LICENSE](LICENSE)
+## 🔒 Security
+
+- Path traversal protection with allowlisted directories
+- CORS restricted to specific origins
+- Error messages sanitized (no internal paths)
+- Docker runs as non-root user
+- Health checks on all containers
+
+## 📝 License
+
+MIT License - see [LICENSE](LICENSE)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push and create a Pull Request
