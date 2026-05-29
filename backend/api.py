@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, List, Dict, Any
 import os
@@ -260,6 +260,116 @@ async def rewind_to_commit(repo_path: str, sha: str):
         logger.error(f"Error rewinding: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.get("/code-dna")
+async def get_code_dna(repo_path: str):
+    """Get phylogenetic DNA tree of the codebase."""
+    try:
+        path = validate_repo_path(repo_path)
+        analyzer = get_analyzer(str(path))
+        tree = analyzer.get_file_tree_for_dna()
+        narrative = await explainer.generate_dna_narrative(tree)
+        tree["narrative"] = narrative
+        return tree
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting code DNA: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/blame")
+async def get_blame(repo_path: str, file_path: str):
+    """Get AI-enhanced blame for a file."""
+    try:
+        path = validate_repo_path(repo_path)
+        analyzer = get_analyzer(str(path))
+        blame_data = analyzer.supercharged_blame(file_path)
+        ai_context = await explainer.explain_blame_context(blame_data)
+        blame_data["ai_context"] = ai_context
+        return blame_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting blame: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/dead-code")
+async def get_dead_code(repo_path: str):
+    """Detect dead/abandoned code in the repository."""
+    try:
+        path = validate_repo_path(repo_path)
+        analyzer = get_analyzer(str(path))
+        dead_code = analyzer.detect_dead_code()
+        ai_recs = await explainer.explain_dead_code(dead_code)
+        dead_code["ai_recommendations"] = ai_recs
+        return dead_code
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error detecting dead code: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.websocket("/ws/explain")
+async def websocket_explain(websocket: WebSocket):
+    """WebSocket endpoint for streaming AI explanations."""
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_json()
+            action = data.get("action")
+            repo_path = data.get("repo_path", "")
+            
+            if action == "explain_commit":
+                path = validate_repo_path(repo_path)
+                analyzer = get_analyzer(str(path))
+                commit_data = analyzer.get_commit_details(data["sha"])
+                
+                # Stream the explanation
+                await websocket.send_json({"status": "processing", "message": "Analyzing commit..."})
+                explanation = await explainer.explain_commit(commit_data)
+                await websocket.send_json({"status": "complete", "data": explanation})
+            
+            elif action == "blame":
+                path = validate_repo_path(repo_path)
+                analyzer = get_analyzer(str(path))
+                await websocket.send_json({"status": "processing", "message": "Running blame analysis..."})
+                blame_data = analyzer.supercharged_blame(data["file_path"])
+                await websocket.send_json({"status": "processing", "message": "Generating AI context..."})
+                ai_context = await explainer.explain_blame_context(blame_data)
+                blame_data["ai_context"] = ai_context
+                await websocket.send_json({"status": "complete", "data": blame_data})
+            
+            elif action == "dead_code":
+                path = validate_repo_path(repo_path)
+                analyzer = get_analyzer(str(path))
+                await websocket.send_json({"status": "processing", "message": "Scanning for dead code..."})
+                dead_code = analyzer.detect_dead_code()
+                await websocket.send_json({"status": "processing", "message": "Generating recommendations..."})
+                ai_recs = await explainer.explain_dead_code(dead_code)
+                dead_code["ai_recommendations"] = ai_recs
+                await websocket.send_json({"status": "complete", "data": dead_code})
+            
+            elif action == "dna":
+                path = validate_repo_path(repo_path)
+                analyzer = get_analyzer(str(path))
+                await websocket.send_json({"status": "processing", "message": "Building DNA tree..."})
+                tree = analyzer.get_file_tree_for_dna()
+                await websocket.send_json({"status": "processing", "message": "Generating evolution narrative..."})
+                narrative = await explainer.generate_dna_narrative(tree)
+                tree["narrative"] = narrative
+                await websocket.send_json({"status": "complete", "data": tree})
+            
+            else:
+                await websocket.send_json({"status": "error", "message": f"Unknown action: {action}"})
+    
+    except WebSocketDisconnect:
+        logger.info("WebSocket client disconnected")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}", exc_info=True)
+        try:
+            await websocket.send_json({"status": "error", "message": "Internal error"})
+        except Exception:
+            pass
+
 @app.get("/")
 async def root():
     """Root endpoint with API documentation."""
@@ -275,6 +385,10 @@ async def root():
             "GET /patterns": "Detect code patterns (params: repo_path)",
             "GET /diff": "Get diff between commits (params: repo_path, sha1, sha2)",
             "GET /rewind": "Rewind to specific commit (params: repo_path, sha)",
+            "GET /code-dna": "Get phylogenetic DNA tree (params: repo_path)",
+            "GET /blame": "AI-enhanced file blame (params: repo_path, file_path)",
+            "GET /dead-code": "Detect dead/abandoned code (params: repo_path)",
+            "WS /ws/explain": "WebSocket for streaming AI (actions: explain_commit, blame, dead_code, dna)",
         }
     }
 
