@@ -17,13 +17,11 @@ code-time-machine/
 ├── backend/           # Python FastAPI server
 │   ├── git_analyzer.py    # Git history parsing
 │   ├── ai_explainer.py    # LLM-powered change analysis
-│   ├── pattern_detector.py # Code pattern recognition
 │   └── api.py             # REST API endpoints
 ├── frontend/          # Next.js + D3.js visualization
 │   ├── components/
 │   │   ├── Timeline.tsx   # Interactive timeline
-│   │   ├── CodeDiff.tsx   # Side-by-side diff viewer
-│   │   └── Narrative.tsx  # AI-generated story
+│   │   └── CommitDetails.tsx # Commit details view
 │   └── pages/
 └── docker/            # Deployment configs
 ```
@@ -33,17 +31,12 @@ code-time-machine/
 **Backend**:
 - Python 3.11+ (FastAPI)
 - GitPython (git history parsing)
-- Tree-sitter (AST parsing)
 - LLM API (change explanation)
 
 **Frontend**:
 - Next.js 14 (React framework)
 - D3.js (timeline visualization)
-- Monaco Editor (code viewer)
 - TailwindCSS (styling)
-
-**Database**:
-- SQLite (cache analysis results)
 
 ## Quick Start
 
@@ -63,10 +56,12 @@ npm run dev
 
 ```
 POST /analyze          # Analyze a git repository
-GET  /timeline/:repo   # Get commit timeline
-GET  /commit/:sha      # Get commit details + AI explanation
-GET  /patterns/:repo   # Detect code patterns
-GET  /rewind/:repo/:sha # Rewind to specific commit
+GET  /timeline?repo_path=...         # Get commit timeline
+GET  /commit?repo_path=...&sha=...   # Get commit details + AI explanation
+GET  /file-history?repo_path=...&file_path=... # Get file evolution
+GET  /patterns?repo_path=...         # Detect code patterns
+GET  /diff?repo_path=...&sha1=...&sha2=...  # Get diff between commits
+GET  /rewind?repo_path=...&sha=...   # Rewind to specific commit
 ```
 
 ## Usage
@@ -97,11 +92,11 @@ Pattern: Architectural shift (stateless → stateful)
 
 - [x] Git history parsing
 - [x] AI-powered change explanation
-- [ ] Interactive timeline visualization
+- [x] Interactive timeline visualization
 - [ ] Pattern detection (dead code, regressions)
 - [ ] Multi-repo comparison
 - [ ] Export reports (PDF/Markdown)
 
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE)

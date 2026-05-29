@@ -1,11 +1,11 @@
-import os
-import json
+import logging
 from datetime import datetime
 from typing import Optional, List
 from pathlib import Path
-import subprocess
 from git import Repo, GitCommandError
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 class CommitInfo(BaseModel):
     sha: str
@@ -114,7 +114,7 @@ class GitAnalyzer:
             commit2 = self.repo.commit(sha2)
             
             diff = commit1.diff(commit2)
-            return diff.raw
+            return diff.raw.decode('utf-8', errors='replace')
         except Exception as e:
             raise ValueError(f"Error getting diff: {e}")
     
