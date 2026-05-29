@@ -1,21 +1,43 @@
-FROM node:18-alpine
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
+
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci || npm install
+
+# Stage 2: Build
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY frontend/ .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+# Stage 3: Runtime
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY frontend/package*.json ./
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install dependencies
-RUN npm install
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# Copy frontend code
-COPY frontend/ .
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Build Next.js app
-RUN npm run build
+USER nextjs
 
-# Expose port
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
+
 EXPOSE 3000
 
-# Run Next.js
-CMD ["npm", "start"]
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
