@@ -105,7 +105,7 @@ export default function Home() {
               onChange={(e) => setRepoPath(e.target.value)}
               placeholder="/path/to/your/git/repository"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
+              onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
               disabled={analyzing}
             />
             <button
