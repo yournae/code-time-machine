@@ -231,3 +231,123 @@ Look for:
                 'architectural_shifts': [],
                 'refactoring_opportunities': [],
             }
+    
+    async def explain_blame_context(self, blame_data: dict) -> dict:
+        """Generate AI explanations for blame context — WHY each section exists."""
+        prompt = self._build_blame_prompt(blame_data)
+        try:
+            explanation = await self._call_llm(prompt)
+            return self._parse_blame_explanation(explanation)
+        except Exception as e:
+            return {"sections": [], "summary": f"Error: {e}"}
+    
+    async def explain_dead_code(self, dead_code_data: dict) -> dict:
+        """Generate AI recommendations for dead code cleanup."""
+        prompt = self._build_dead_code_prompt(dead_code_data)
+        try:
+            explanation = await self._call_llm(prompt)
+            return self._parse_dead_code_explanation(explanation)
+        except Exception as e:
+            return {"recommendations": [], "risk_assessment": "Unknown"}
+    
+    async def generate_dna_narrative(self, tree_data: dict) -> str:
+        """Generate a narrative story of the codebase's DNA evolution."""
+        prompt = self._build_dna_prompt(tree_data)
+        try:
+            return await self._call_llm(prompt)
+        except Exception as e:
+            return f"Error generating DNA narrative: {e}"
+    
+    def _build_blame_prompt(self, blame_data: dict) -> str:
+        contributors = blame_data.get("contributors", {})
+        hotspots = blame_data.get("hotspots", [])
+        history = blame_data.get("history", [])[:10]
+        
+        return f"""Analyze this file's blame data and explain WHY each major section exists:
+
+File: {blame_data.get('file_path', 'unknown')}
+Contributors: {json.dumps(contributors, indent=2)}
+Hotspots (most changed commits): {json.dumps(hotspots[:5], indent=2)}
+Recent history: {json.dumps(history, indent=2)}
+
+For each major section of the file, explain:
+1. Why it was written
+2. What problem it solves
+3. Any patterns or concerns
+
+Return JSON:
+{{
+    "sections": [
+        {{"area": "description of code area", "purpose": "why it exists", "concern": "any issues"}}
+    ],
+    "summary": "overall file health and purpose summary",
+    "refactoring_suggestions": ["list of suggestions"]
+}}"""
+    
+    def _build_dead_code_prompt(self, dead_code_data: dict) -> str:
+        stats = dead_code_data.get("stats", {})
+        dead = dead_code_data.get("dead_files", [])[:10]
+        stale = dead_code_data.get("stale_files", [])[:10]
+        
+        return f"""Analyze this dead code report and provide cleanup recommendations:
+
+Stats: {json.dumps(stats, indent=2)}
+Dead files: {json.dumps(dead, indent=2)}
+Stale files: {json.dumps(stale, indent=2)}
+
+For each file, assess:
+1. Risk of removal (could it still be needed?)
+2. Impact on the codebase
+3. Recommended action
+
+Return JSON:
+{{
+    "recommendations": [
+        {{"file": "path", "action": "remove/archive/investigate", "risk": "low/medium/high", "reason": "why"}}
+    ],
+    "risk_assessment": "overall risk of cleanup",
+    "priority_order": ["files to clean first"]
+}}"""
+    
+    def _build_dna_prompt(self, tree_data: dict) -> str:
+        nodes = tree_data.get("nodes", [])[:30]
+        links = tree_data.get("links", [])[:20]
+        
+        return f"""Tell the evolutionary story of this codebase based on its file DNA:
+
+Files (species): {json.dumps(nodes[:20], indent=2)}
+Relationships (mutations): {json.dumps(links[:15], indent=2)}
+
+Write a compelling narrative (3-4 paragraphs) about:
+1. The origin story — which files were the ancestors
+2. Major evolutionary events — splits, renames, extinctions
+3. The current ecosystem — what survived and thrived
+4. Evolutionary pressure — what drove the changes
+
+Write like a nature documentary narrator. Make it engaging and insightful."""
+    
+    def _parse_blame_explanation(self, response: str) -> dict:
+        try:
+            if "```json" in response:
+                json_str = response.split("```json")[1].split("```")[0].strip()
+                return json.loads(json_str)
+            elif "{" in response:
+                start = response.index("{")
+                end = response.rindex("}") + 1
+                return json.loads(response[start:end])
+            return {"sections": [], "summary": response[:200]}
+        except Exception:
+            return {"sections": [], "summary": response[:200]}
+    
+    def _parse_dead_code_explanation(self, response: str) -> dict:
+        try:
+            if "```json" in response:
+                json_str = response.split("```json")[1].split("```")[0].strip()
+                return json.loads(json_str)
+            elif "{" in response:
+                start = response.index("{")
+                end = response.rindex("}") + 1
+                return json.loads(response[start:end])
+            return {"recommendations": [], "risk_assessment": response[:200]}
+        except Exception:
+            return {"recommendations": [], "risk_assessment": response[:200]}
