@@ -1,12 +1,10 @@
 import logging
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, List, Dict, Any
-import os
+from typing import Dict, Any
 from pathlib import Path
-import asyncio
 
-from git_analyzer import GitAnalyzer, CommitInfo
+from git_analyzer import GitAnalyzer
 from ai_explainer import AIExplainer
 
 logger = logging.getLogger(__name__)

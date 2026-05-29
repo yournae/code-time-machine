@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime
-from typing import Optional, List
+from typing import List
 from pathlib import Path
-from git import Repo, GitCommandError
+from git import Repo
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,6 @@ class GitAnalyzer:
                     break
                 
                 # Get diff stats
-                diff_index = commit.parents[0].diff(commit) if commit.parents else None
                 files_changed = len(commit.stats.files) if commit.stats else 0
                 insertions = sum(f['insertions'] for f in commit.stats.files.values()) if commit.stats else 0
                 deletions = sum(f['deletions'] for f in commit.stats.files.values()) if commit.stats else 0
@@ -319,7 +318,6 @@ class GitAnalyzer:
             
             now = datetime.now()
             six_months_ago = now.timestamp() - (180 * 24 * 3600)
-            one_year_ago = now.timestamp() - (365 * 24 * 3600)
             
             # Track file activity
             file_last_modified = {}

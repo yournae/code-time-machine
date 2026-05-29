@@ -1,7 +1,6 @@
 import os
 import json
 from typing import Optional, List
-from pydantic import BaseModel
 import httpx
 
 class AIExplainer:
@@ -54,7 +53,7 @@ class AIExplainer:
         try:
             patterns = await self._call_llm(prompt)
             return self._parse_patterns(patterns)
-        except Exception as e:
+        except Exception:
             return {
                 'dead_code': [],
                 'performance_regressions': [],
@@ -247,7 +246,7 @@ Look for:
         try:
             explanation = await self._call_llm(prompt)
             return self._parse_dead_code_explanation(explanation)
-        except Exception as e:
+        except Exception:
             return {"recommendations": [], "risk_assessment": "Unknown"}
     
     async def generate_dna_narrative(self, tree_data: dict) -> str:
