@@ -34,10 +34,15 @@ class GitAnalyzer:
                 if i >= limit:
                     break
                 
-                # Get diff stats
-                files_changed = len(commit.stats.files) if commit.stats else 0
-                insertions = sum(f['insertions'] for f in commit.stats.files.values()) if commit.stats else 0
-                deletions = sum(f['deletions'] for f in commit.stats.files.values()) if commit.stats else 0
+                # Get diff stats (handle shallow clones gracefully)
+                try:
+                    files_changed = len(commit.stats.files)
+                    insertions = sum(f['insertions'] for f in commit.stats.files.values())
+                    deletions = sum(f['deletions'] for f in commit.stats.files.values())
+                except Exception:
+                    files_changed = 0
+                    insertions = 0
+                    deletions = 0
                 
                 commits.append(CommitInfo(
                     sha=commit.hexsha[:8],

@@ -11,7 +11,7 @@ interface Commit {
   deletions: number;
 }
 
-interface CommitWithDate extends Commit {
+interface CommitWithDate extends Omit<Commit, 'date'> {
   date: Date;
   totalChanges: number;
 }
