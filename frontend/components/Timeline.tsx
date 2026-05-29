@@ -15,9 +15,10 @@ interface TimelineProps {
   commits: Commit[];
   onCommitSelect: (commit: Commit) => void;
   selectedSha?: string;
+  isDark?: boolean;
 }
 
-export const Timeline: React.FC<TimelineProps> = ({ commits, onCommitSelect, selectedSha }) => {
+export const Timeline: React.FC<TimelineProps> = ({ commits, onCommitSelect, selectedSha, isDark = false }) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -35,6 +36,11 @@ export const Timeline: React.FC<TimelineProps> = ({ commits, onCommitSelect, sel
       .attr('height', height + margin.top + margin.bottom)
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const bgColor = isDark ? '#1f2937' : '#ffffff';
+    const textColor = isDark ? '#e5e7eb' : '#000000';
+    const gridOpacity = isDark ? 0.15 : 0.1;
+    const axisColor = isDark ? '#9ca3af' : '#000000';
 
     // Parse dates
     const data = commits.map(c => ({
@@ -60,7 +66,7 @@ export const Timeline: React.FC<TimelineProps> = ({ commits, onCommitSelect, sel
     // Add grid
     svg.append('g')
       .attr('class', 'grid')
-      .attr('opacity', 0.1)
+      .attr('opacity', gridOpacity)
       .call(d3.axisLeft(yScale)
         .tickSize(-width)
         .tickFormat(() => '')
@@ -100,30 +106,32 @@ export const Timeline: React.FC<TimelineProps> = ({ commits, onCommitSelect, sel
     svg.append('g')
       .attr('transform', `translate(0,${height})`)
       .call(d3.axisBottom(xScale))
+      .attr('color', axisColor)
       .append('text')
       .attr('x', width / 2)
       .attr('y', 30)
-      .attr('fill', 'black')
+      .attr('fill', textColor)
       .attr('text-anchor', 'middle')
       .text('Date');
 
     // Add Y axis
     svg.append('g')
       .call(d3.axisLeft(yScale))
+      .attr('color', axisColor)
       .append('text')
       .attr('transform', 'rotate(-90)')
       .attr('y', 0 - margin.left)
       .attr('x', 0 - (height / 2))
       .attr('dy', '1em')
-      .attr('fill', 'black')
+      .attr('fill', textColor)
       .attr('text-anchor', 'middle')
       .text('Total Changes');
 
-  }, [commits, selectedSha, onCommitSelect]);
+  }, [commits, selectedSha, onCommitSelect, isDark]);
 
   return (
-    <div className="w-full bg-white rounded-lg shadow p-4">
-      <h2 className="text-xl font-bold mb-4">Commit Timeline</h2>
+    <div className={`w-full rounded-lg shadow p-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+      <h2 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Commit Timeline</h2>
       <svg ref={svgRef} className="w-full" style={{ minHeight: '400px' }} />
     </div>
   );
