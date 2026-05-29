@@ -11,6 +11,11 @@ interface Commit {
   deletions: number;
 }
 
+interface CommitWithDate extends Commit {
+  date: Date;
+  totalChanges: number;
+}
+
 interface TimelineProps {
   commits: Commit[];
   onCommitSelect: (commit: Commit) => void;
@@ -92,7 +97,7 @@ export const Timeline: React.FC<TimelineProps> = ({ commits, onCommitSelect, sel
       .attr('fill', d => d.sha === selectedSha ? '#ef4444' : '#3b82f6')
       .attr('opacity', 0.7)
       .style('cursor', 'pointer')
-      .on('click', (_, d) => onCommitSelect(d))
+      .on('click', (_, d) => onCommitSelect(d as unknown as Commit))
       .on('mouseover', function() {
         d3.select(this).attr('r', 6).attr('opacity', 1);
       })
